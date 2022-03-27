@@ -1,0 +1,25 @@
+{
+  "name": "zoom2",
+  "version": "1.0.0",
+  "description": "practice peerjs",
+  "license": "MIT",
+  "scripts": {
+    "devs": "nodemon"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.17.6",
+    "@babel/core": "^7.17.5",
+    "@babel/node": "^7.16.8",
+    "@babel/preset-env": "^7.16.11",
+    "nodemon": "^2.0.15"
+  },
+  "dependencies": {
+    "android-emulator-webrtc": "^1.0.15",
+    "express": "^4.17.3",
+    "hark": "^1.2.3",
+    "peer": "^0.6.1",
+    "pug": "^3.0.2",
+    "socket.io": "^2.3.0",
+    "uuid": "^8.3.2"
+  }
+}

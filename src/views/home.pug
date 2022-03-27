@@ -1,0 +1,53 @@
+doctype html
+html(lang="ko")
+    head
+        meta(charset="UTF-8")
+        meta(http-equiv="X-UA-Compatible", content="IE=edge")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        script const ROOM_ID = "#{roomId}"
+        script const USER_NAME = "#{userName}"
+        script const LIMIT = "#{limit}"
+        script const ISCREATOR = "#{isCreator}"
+        title peer
+        //- link(rel="stylesheet", href="https://unpkg.com/mvp.css")
+        style
+            include ./style.css
+            
+    body
+        header 
+        main
+            div#ground
+                div#video-host 
+                    div#name-host
+                div#video-grid
+            //- div#video-grid
+            //- div#welcome
+            //-     form
+            //-         input(placeholder="room name", required, type="text")
+            //-         button 입장하
+            //- div#call
+            //-     div#myStream
+            //-         video#myFace(autoplay,playsinline,width="400", height="400")
+            //-         button#mute 음소거
+            //-         button#camera 카메라 끄기
+            //-         select#cameras
+            //-         video#peerFace(autoplay,playsinline,width="400", height="400")
+            div#interface
+                button#mute 마이크 OFF
+                button#camera 카메라 OFF
+                button#changeInput 카메라전환
+                span#join 참여인원 : 0 / #{limit}
+                button#finish 나가기
+                select#cameras
+            //- div
+            //-     input#micVol(type='range', min="0",max="2", step="0.1")
+        script(src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js") 
+        script(src="/socket.io/socket.io.js")
+        script(src="/public/js/hark.bundle.js")
+        script(src="/public/js/app.js")
+    //- body 
+    //-     header
+    //-         h1 it works
+    //-     main 
+    //-     script(src="/socket.io/socket.io.js")
+    //-     script(src="/public/js/app.js")
