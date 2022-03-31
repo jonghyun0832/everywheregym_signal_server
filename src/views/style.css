@@ -2,7 +2,12 @@ body {
     background:black;
 }
 
+#wrap{
+    display: flex;
+}
+
 #ground{
+    position: relative;
     width:100%;
     height: 300px;
     /* background-color: aqua; */
@@ -30,20 +35,20 @@ body {
 }
 
 button {
-    width:110px;
-    height:50px;
+    width:80px;
+    height:40px;
     background-color: #2B99FF;
     color: white;
-    font-size: 16px;
-    margin-right: 10px;
-    margin-left: 20px;
+    font-size: 12px;
+    margin-right: 5px;
+    margin-left: 10px;
     margin-top: 20px;
 }
 
 #join{
-    font-size: 15px;
+    font-size: 14px;
     color: white;
-    margin-left: 80px;
+    margin-left: 30px;
 }
 
 #finish {
@@ -72,6 +77,8 @@ button {
     /* grid-template-columns: repeat(auto-fill, 50%);
     grid-auto-rows: 50%; */
 }
+
+
 video {
     box-sizing: border-box;
     width: 100%;
@@ -80,4 +87,50 @@ video {
 }
 #cameras{
     display:none;
+}
+
+#chat-area{
+    background-color: #ffffff;
+    height: 300px;
+    width: 0%;
+    visibility: hidden;
+    position: relative;
+    
+}
+
+#chat-log{
+    /* background-color: blueviolet; */
+    height: 80%;
+    overflow: auto;
+    padding-left: 5%;
+}
+
+#chat{
+    position: absolute;
+    bottom: 0px;
+    width:100%;
+    /* background-color: aliceblue; */
+    height: 20%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#chat>select{
+    height: 80%;
+    width: 20%;
+}
+
+#chat>input{
+    margin-left: 5%;
+    /* background-color: #FF2B2B; */
+    height: 80%;
+    width: 70%
+}
+
+#chat>button{
+    margin: 0;
+    /* background-color: aqua; */
+    height: 80%;
+    width: 15%;
 }

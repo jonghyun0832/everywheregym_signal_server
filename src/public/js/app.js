@@ -1,4 +1,5 @@
 const socket = io();
+const ground = document.getElementById('ground');
 const videoGrid = document.getElementById('video-grid');
 const videoHost = document.getElementById('video-host');
 const muteBtn = document.getElementById("mute");
@@ -8,7 +9,19 @@ const camerasSelect = document.getElementById("cameras");
 const finish = document.getElementById("finish");
 const nameHost = document.getElementById("name-host");
 const join = document.getElementById("join");
+const messageBox = document.getElementById("chat");
+const chatArea = document.getElementById("chat-area");
+const chatBtn = document.getElementById("chatting");
+const chatlog = document.getElementById("chat-log");
+const messageInput = document.querySelector("input");
+const userSelect = document.getElementById("dest");
+
+messageInput.addEventListener("focus", function(){
+  console.log("포커스들어옴");
+  window.Android.chat_focus();
+})
 //const micVolume = document.getElementById("micVol");
+
 
 let muted = false;
 let mic_vol_mute = false;
@@ -22,14 +35,17 @@ let blockp2p = false;
 let join_num = 0;
 let join_limit = LIMIT;
 let myVideoStream;
+let myDataChannel;
+let chatting = false;
+let chat_mode = 0; //0은 모두 1은 트레이너 2는 각회원별
 
 
 if(join_limit < 5){
-  videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(250px,1fr))";
-} else if (join_limit < 10){
   videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(200px,1fr))";
-} else {
+} else if (join_limit < 10){
   videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(150px,1fr))";
+} else {
+  videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(120px,1fr))";
 }
 
 // videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(400px,1fr))";
@@ -74,7 +90,9 @@ const myPeer = new Peer({
 const myVideo = document.createElement('video');
 myVideo.muted = true;
 const peers = {};
+const dcs = {};
 let calls = [];
+let channels = [];
 let isStart = false;
 let host = false;
 let hostId;
@@ -84,9 +102,13 @@ let hostId;
 if(ISCREATOR == "1"){
   host = true;
   console.log("생성자입니다");
-  finish.innerText = "종료하기";
+  finish.innerText = "방송종료";
 } else {
   blockp2p = true;
+  const option = document.createElement("option");
+  option.value = "trainer";
+  option.innerText = "트레이너에게";
+  userSelect.appendChild(option);
 }
 
 
@@ -220,6 +242,10 @@ muteBtn.addEventListener("click",handleMuteClick);
 cameraBtn.addEventListener("click",handleCameraClick);
 changeBtn.addEventListener("click",handleChangeInput);
 finish.addEventListener("click",handelFinish);
+// const sendBtn = messageBox.querySelector("button");
+// sendBtn.addEventListener("click",sendMessage);
+chatBtn.addEventListener("click",handleChat);
+userSelect.addEventListener("input", handleUserChange);
 //camerasSelect.addEventListener("input", handleCameraChange);
 
 async function getCameras() {
@@ -346,9 +372,52 @@ async function initProcess(){
 async function firstini(){
   await initProcess();
 
+  myPeer.on('connection', function(conn){
+    myDataChannel = conn;
+    //dcs[call.metadata.type] = conn;
+    channels.push(conn);
+    dcs[myDataChannel.peer] = myDataChannel;
+    console.log("받아온 데이터 채널");
+    console.log(myDataChannel);
+    console.log(dcs);
+    myDataChannel.on('data', function(data){
+      
+      get_message = data.split("/");
+      console.log(get_message[1] + " : " + get_message[0]);
+
+      const textbox = document.createElement("div");
+      textbox.innerText = get_message[1] + " : " + get_message[0];
+      textbox.style.wordBreak = "break-all";
+
+      if(get_message[2] == 1){
+        textbox.style.fontWeight = "900";
+      }
+      
+      if(get_message.length > 3){
+        textbox.style.backgroundColor = "#fdffa1ab"
+      }
+      chatlog.append(textbox);
+      chatlog.scrollTop = chatlog.scrollHeight;
+    })
+    // myDataChannel.on('close', function(){
+    //   console.log("채널 삭제 부분 111111111111111111111111111");
+    //   console.log(channels);
+    //   channels = channels.filter((element)=> element != myDataChannel);
+    //   console.log(channels);
+
+    // })
+
+  });
+
   myPeer.on('call', (call) => { //이건 접속하는쪽에서만 발생
+    //console.log(myPeer);
+    // myDataChannel.on('data', function(data){
+    //   console.log(data);
+    // });
+
     join_num = call.metadata.join;
-    join.innerText = "참여인원 : " + join_num + " / " + join_limit;
+    join.innerText = "참여회원 : " + join_num + " / " + join_limit;
+    console.log(call.dataChannel);
     console.log("call");
     console.log(call.metadata);
     //console.log(call.peer);
@@ -390,7 +459,7 @@ async function firstini(){
   
   socket.on('user-connected', (peerId, name) => {
     join_num += 1;
-    join.innerText = "참여인원 : " + join_num + " / " + join_limit;
+    join.innerText = "참여회원 : " + join_num + " / " + join_limit;
     console.log("user_connected peer id : " + peerId);
     connectToNewUser(peerId, myStream, name);
     //여기서 받아온 인원수로 늘려주고
@@ -403,7 +472,7 @@ socket.on('user-disconnected', (peerId) => {
   if(join_num >0){
     join_num -= 1;
   }
-  join.innerText = "참여인원 : " + join_num + " / " + join_limit;
+  join.innerText = "참여회원 : " + join_num + " / " + join_limit;
   console.log("user_disconnected : " + peerId);
   console.log(peerId);
   console.log(peers);
@@ -419,6 +488,28 @@ socket.on('user-disconnected', (peerId) => {
       peers[value].close();
     }
   }
+  console.log(dcs);
+  if(dcs[peerId]){
+    console.log("존재함");
+    delete dcs[peerId];
+    
+    for (let i = 0; i < userSelect.length; i++) {
+      if(userSelect.options[i].value == peerId){
+        userSelect.remove(i);
+        userSelect.options[0].selected;
+        handleUserChange();
+      }
+    }
+
+  }
+  console.log(dcs);
+  // let dcKeyArray = Object.keys(dcs);
+  // for (var value of dcKeyArray){
+  //   if(value.indexOf(peerId) != -1){
+  //     console.log("채널삭제프로세스 들어감");
+  //     dcs[value].close();
+  //   }
+  // }
 });
 
 myPeer.on('open', (id) => { //이건 어디서든 발생
@@ -433,11 +524,52 @@ myPeer.on('open', (id) => { //이건 어디서든 발생
 //아마도 여기서 connectToNew하기전에 stream이 먼저 나와서? 2번쨰 stream이 적용안되는거같음
 //connect to new user에서 call발생시킴
 function connectToNewUser(peerId, stream, name) {
+  myDataChannel = myPeer.connect(peerId, {
+    label:"chat"
+  });
+  myDataChannel.label = "chat";
+
+  // dcs[myPeerId +"/"+ peerId] = myDataChannel;
+
+  channels.push(myDataChannel);
+  dcs[myDataChannel.peer] = myDataChannel;
+  console.log(channels);
+  myDataChannel.on('open', function(){
+    console.log("데이터 채널 연결 생성");
+    // myDataChannel.send('hi');
+  });
+  myDataChannel.on('data', function(data){
+    get_message = data.split("/");
+    console.log(get_message[1] + " : " + get_message[0]);
+    const textbox = document.createElement("div");
+    textbox.innerText = get_message[1] + " : " + get_message[0];
+    textbox.style.wordBreak = "break-all";
+    if(get_message[2] == 1){
+      textbox.style.fontWeight = "900";
+    }
+    if(get_message.length > 3){
+      textbox.style.backgroundColor = "#fdffa1ab"
+    }
+    chatlog.append(textbox);
+    chatlog.scrollTop = chatlog.scrollHeight;
+  });
+  // myDataChannel.on('close', function(){
+  //   console.log("채널 삭제 부분 22222222222222222222222222");
+  //   console.log(channels);
+  //   channels = channels.filter((element)=> element != myDataChannel);
+  //   console.log(channels);
+  // })
   if(!blockp2p){
     console.log("connectToNewUser");
     console.log(stream);
     if(host){
       options = {metadata: {"type":myPeerId, "name":myName, "join":join_num, "host":true}};
+
+      const option = document.createElement("option");
+      option.value = peerId;
+      option.innerText = name + "에게";
+      userSelect.appendChild(option);
+
     } else {
       options = {metadata: {"type":myPeerId, "name":myName, "join":join_num, "host":false}};
     }
@@ -591,5 +723,121 @@ function deleteCall(id){
       calls.splice(i,1);
       i--;
     }
+  }
+}
+
+function sendMessage(){
+  const input = messageBox.querySelector("input");
+  document.querySelector("input").blur();
+
+  if(input.value != ""){
+
+    const textbox = document.createElement("div");
+
+    if(chat_mode == 0){
+      console.log("모두에게 채팅 보냄");
+
+      channels.forEach(function(channel){
+        channel.send(input.value + "/" + USER_NAME + "/" + ISCREATOR);
+      })
+
+    } else if (chat_mode == 1){
+      console.log("트레이너에게 채팅 보냄");
+      textbox.style.backgroundColor = "#fdffa1ab"
+
+      if(hostId){
+        channel = dcs[hostId];
+        channel.send(input.value + "/" + USER_NAME + "/" + ISCREATOR + "/tr");
+      } else {
+        input.value = "귓속말을 보낼 대상이 없습니다.";
+      }
+
+    } else {
+      console.log("특정 회원에게 채팅 보냄");
+      console.log(userSelect.value);
+      console.log(dcs);
+      console.log(dcs[userSelect.value]);
+      textbox.style.backgroundColor = "#fdffa1ab"
+      if(dcs[userSelect.value]){
+        channel = dcs[userSelect.value];
+        channel.send(input.value + "/" + USER_NAME + "/" + ISCREATOR + "/r");
+
+      } else {
+        input.value = "귓속말을 보낼 대상이 없습니다.";
+      }
+    }
+
+    if(ISCREATOR == 1){
+      textbox.style.fontWeight = "900";
+    }
+
+    // textbox.innerText = USER_NAME + " : " + input.value;
+    textbox.innerText = "내 메시지 : " + input.value;
+    textbox.style.wordBreak = "break-all";
+    chatlog.append(textbox);
+
+    chatlog.scrollTop = chatlog.scrollHeight;
+    input.value = "";
+  }
+}
+
+function handleChat(){
+  if(host){
+    if(chatting){
+      ground.style.width = "100%";
+      chatArea.style.visibility = "hidden";
+      chatArea.style.width = "0%";
+      chatting = false;
+      window.Android.call_log(chatting);
+    } else {
+      ground.style.width = "70%";
+      chatArea.style.visibility = "visible";
+      chatArea.style.width = "30%";
+      chatting = true;
+      window.Android.call_log(chatting);
+    }
+  } else {
+    if(chatting){
+      ground.style.width = "100%";
+      chatArea.style.visibility = "hidden";
+      chatArea.style.width = "0%";
+      chatting = false;
+      window.Android.call_log(chatting);
+    } else {
+      ground.style.width = "70%";
+      chatArea.style.visibility = "visible";
+      chatArea.style.width = "30%";
+      chatting = true;
+      window.Android.call_log(chatting);
+    }
+  }
+  
+}
+
+function getInput(message){
+  console.log(message);
+  messageBox.querySelector("input").value = message;
+  sendMessage();
+  
+}
+
+
+function handleUserChange(){
+  send_user = userSelect.value;
+  if(send_user == "all"){
+    //모두에게 보내기
+    console.log("모두에게");
+    chat_mode = 0;
+
+  }else if(send_user == "trainer"){
+    //트레이너에게 보내기
+    console.log("트레이너에게");
+    chat_mode = 1;
+
+  }else {
+    //트레이너가 특정 회원에게 보내기
+    console.log("특정 회원에게");
+    chat_mode = 2;
+
   }
 }
