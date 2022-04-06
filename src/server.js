@@ -13,6 +13,10 @@ const io = require("socket.io")(server);
 app.set('view engine', "pug");
 app.set("views",__dirname + "/views")
 app.use("/public",express.static(__dirname+"/public"));
+
+let rooms = {};
+let isHost = false;
+
 //연결부분
 // app.get("/", (req,res)=> {
 //     res.redirect(`/${uuidv4()}`)
@@ -30,10 +34,20 @@ app.use("/public",express.static(__dirname+"/public"));
 // });
 app.get("/:home/:userName/:limit", (req,res) => {
     console.log(req.params);
-    res.render("home",{roomId: req.params.home,userName:req.params.userName, limit:req.params.limit});
+    //maxnum = req.params.limit;
+    isHost = false;
+    if(rooms[req.params.home]){
+        res.render("home",{roomId: req.params.home,userName:req.params.userName, limit:req.params.limit});
+    }
+    else {
+        res.render("test");
+    }
+    //res.render("home",{roomId: req.params.home,userName:req.params.userName, limit:req.params.limit});
 });
 app.get("/:home/:userName/:limit/:isCreator", (req,res) => {
     console.log(req.params);
+    //maxnum = req.params.limit;
+    isHost = true;
     res.render("home",{roomId: req.params.home,userName:req.params.userName,limit:req.params.limit, isCreator: req.params.isCreator});
 });
 
@@ -48,15 +62,35 @@ io.on('connection', (socket) => {
     console.log(socket.id);
     console.log("왔구나");
     socket.on('join-room', (roomId, peerId, name) => {
-        console.log(peerId);
-        console.log(roomId);
-        socket.join(roomId);
-        socket.to(roomId).broadcast.emit('user-connected', peerId, name);
-    
-        socket.on('disconnect', () => {
+        if(isHost){
+            rooms[roomId] = peerId;
+            io.sockets.to(socket.id).emit('send-alarm',roomId);
+        }
+        if(rooms[roomId]){ //해당 방이 존재할때
+            console.log(rooms);
             console.log(peerId);
-            socket.to(roomId).broadcast.emit('user-disconnected', peerId);
-      });
+            console.log(roomId);
+            socket.join(roomId);
+            //io.sockets.to(socket.id).emit("good-gate");
+            socket.to(roomId).broadcast.emit('user-connected', peerId, name);
+        
+            socket.on('disconnect', () => {
+                console.log(peerId);
+                socket.to(roomId).broadcast.emit('user-disconnected', peerId);
+                if(rooms[roomId] == peerId){ //호스트가 퇴장한 경우
+                    console.log("호스트 퇴장");
+                    console.log(rooms);
+                    delete rooms[roomId];
+                    console.log(rooms);
+                }
+            });
+        } 
+        // else { //해당 방이 없을때
+        //     console.log("dddd");
+        //     io.sockets.to(socket.id).emit("bad-gate");
+        //     //socket.to(socket.id).emit("bad-gate");
+        // }
+        
     });
     // socket.on('send-peer-list', (roomId, peerList)=>{
     //     console.log("send peer list" + peerList);

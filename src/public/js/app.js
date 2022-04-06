@@ -15,6 +15,8 @@ const chatBtn = document.getElementById("chatting");
 const chatlog = document.getElementById("chat-log");
 const messageInput = document.querySelector("input");
 const userSelect = document.getElementById("dest");
+const bubble = document.getElementById("bubble");
+const messageCount = document.getElementById("messageCount");
 
 messageInput.addEventListener("focus", function(){
   console.log("포커스들어옴");
@@ -36,18 +38,35 @@ let join_num = 0;
 let join_limit = LIMIT;
 let myVideoStream;
 let myDataChannel;
-let chatting = false;
+let chatting = false; // 채팅창 활성화 여부
 let chat_mode = 0; //0은 모두 1은 트레이너 2는 각회원별
 
+let new_message = 0; //읽지 않은 메세지 카운트용
 
-if(join_limit < 5){
-  videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(200px,1fr))";
-} else if (join_limit < 10){
-  videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(150px,1fr))";
-} else {
-  videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(120px,1fr))";
-}
+let level = 1;
+let outTimer = null;
+let timer = null;
 
+
+if(ISCREATOR == 1){
+  if(join_limit < 5){
+    videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(200px,1fr))";
+  } else if (join_limit < 10){
+    videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(150px,1fr))";
+  } else {
+    videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(120px,1fr))";
+  }
+} 
+// else {
+//   if(join_limit < 5){
+//     videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(150px,1fr))";
+//   } else if (join_limit < 10){
+//     videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(100px,1fr))";
+//   } else {
+//     videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(70px,1fr))";
+//   }
+// }
+//여기
 // videoGrid.style.gridTemplateColumns = "repeat(auto-fit, minmax(400px,1fr))";
 
 
@@ -81,6 +100,11 @@ const myPeer = new Peer({
           username: 'homeo'
       },
       {
+        url: "turn:openrelay.metered.ca:443",
+        credential: "openrelayproject",
+        username: "openrelayproject",
+      },
+      {
           url: 'turn:turn.anyfirewall.com:443?transport=tcp',
           credential: 'webrtc',
           username: 'webrtc'
@@ -104,6 +128,7 @@ if(ISCREATOR == "1"){
   console.log("생성자입니다");
   finish.innerText = "방송종료";
 } else {
+  //여기
   blockp2p = true;
   const option = document.createElement("option");
   option.value = "trainer";
@@ -248,6 +273,8 @@ chatBtn.addEventListener("click",handleChat);
 userSelect.addEventListener("input", handleUserChange);
 //camerasSelect.addEventListener("input", handleCameraChange);
 
+
+
 async function getCameras() {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -381,8 +408,42 @@ async function firstini(){
     console.log(myDataChannel);
     console.log(dcs);
     myDataChannel.on('data', function(data){
-      
+
+      //받아온 메세지 보낸 사람과 내용으로 쪼개기
       get_message = data.split("/");
+      
+      if(!chatting){
+        //채팅창 활성화 안되있으면 안읽은 메세지 +, visible설정
+        messageCount.style.visibility = "visible";
+        new_message += 1;
+        if(new_message >= 100){
+          messageCount.innerText = "99+"
+        }else {
+          messageCount.innerText = new_message;
+        }
+
+        //채팅창 활성화 안되있으면 가장 최근 메세지 띄워주기
+        bubble.style.visibility = "visible";
+        clearTimeout(timer);
+        clearInterval(outTimer);
+        if(get_message[0].length > 7){
+          get_message[0] = get_message[0].substr(0,7) + "...";
+        }
+        bubble.innerHTML = get_message[1] + "<br/>" + get_message[0];
+        if(get_message.length > 3){
+          bubble.style.background = "#989b48c0";
+          bubble.innerHTML = "FROM " + get_message[1] + "<br/>" + get_message[0];
+        }else {
+          bubble.style.background = "#424242";
+        }
+        changeOpacity(bubble,1);
+        level = 1;
+        timer = setTimeout(function(){
+          fadeOut(bubble)
+        },2000);
+      }
+      
+      // get_message = data.split("/");
       console.log(get_message[1] + " : " + get_message[0]);
 
       const textbox = document.createElement("div");
@@ -394,6 +455,7 @@ async function firstini(){
       }
       
       if(get_message.length > 3){
+        textbox.innerText = "FROM " + get_message[1] + " : " + get_message[0];
         textbox.style.backgroundColor = "#fdffa1ab"
       }
       chatlog.append(textbox);
@@ -464,9 +526,24 @@ async function firstini(){
     connectToNewUser(peerId, myStream, name);
     //여기서 받아온 인원수로 늘려주고
   });
+
 }
 
 firstini();
+
+// socket.on('bad-gate', () => {
+//   console.log("잘못된 접근");
+//   alert("잘못된 접근입니다");
+// });
+
+// socket.on('good-gate', () => {
+//   console.log("올바른 접근");
+//   firstini();
+// });
+
+socket.on('send-alarm', (roomId)=>{
+  window.Android.send_alarm(roomId);
+});
 
 socket.on('user-disconnected', (peerId) => {
   if(join_num >0){
@@ -539,7 +616,44 @@ function connectToNewUser(peerId, stream, name) {
     // myDataChannel.send('hi');
   });
   myDataChannel.on('data', function(data){
+
+    //받아온 메세지 보낸 사람과 내용으로 쪼개기
     get_message = data.split("/");
+
+    //채팅창 활성화 안되있으면 안읽은 메세지 +, visible설정
+    if(!chatting){
+      messageCount.style.visibility = "visible";
+      new_message += 1;
+      if(new_message >= 100){
+        messageCount.innerText = "99+"
+      }else {
+        messageCount.innerText = new_message;
+      }
+
+      //채팅창 활성화 안되있으면 가장 최근 메세지 띄워주기
+      bubble.style.visibility = "visible";
+      clearTimeout(timer);
+      clearInterval(outTimer);
+      if(get_message[0].length > 7){
+        get_message[0] = get_message[0].substr(0,7) + "...";
+      }
+      bubble.innerHTML = get_message[1] + "<br/>" + get_message[0];
+        if(get_message.length > 3){
+          bubble.style.background = "#989b48c0";
+          bubble.innerHTML = "FROM " + get_message[1] + "<br/>" + get_message[0];
+        }else {
+          bubble.style.background = "#424242";
+        }
+      changeOpacity(bubble,1);
+      level = 1;
+      timer = setTimeout(function(){
+        fadeOut(bubble)
+      },2000);
+
+    }
+
+
+    // get_message = data.split("/");
     console.log(get_message[1] + " : " + get_message[0]);
     const textbox = document.createElement("div");
     textbox.innerText = get_message[1] + " : " + get_message[0];
@@ -548,7 +662,8 @@ function connectToNewUser(peerId, stream, name) {
       textbox.style.fontWeight = "900";
     }
     if(get_message.length > 3){
-      textbox.style.backgroundColor = "#fdffa1ab"
+      textbox.innerText = "FROM " + get_message[1] + " : " + get_message[0];
+      textbox.style.backgroundColor = "#fdffa1ab";
     }
     chatlog.append(textbox);
     chatlog.scrollTop = chatlog.scrollHeight;
@@ -638,6 +753,7 @@ function addVideoStream(video, stream, peerId, name, text2, div1) {
     div1.append(text2);
     div1.append(video);
     if(!host){ //자신이 호스트가 아닌경우
+      //여기
       videoGrid.style.gridTemplateColumns = "100%";
       videoGrid.style.gridAutoRows = "100%";
       if(hostId){ //호스트 정의 되었을 때
@@ -741,9 +857,13 @@ function sendMessage(){
         channel.send(input.value + "/" + USER_NAME + "/" + ISCREATOR);
       })
 
+      textbox.innerText = "내 메시지 : " + input.value;
+
     } else if (chat_mode == 1){
       console.log("트레이너에게 채팅 보냄");
       textbox.style.backgroundColor = "#fdffa1ab"
+
+      textbox.innerText = "To 트레이너 : " + input.value;
 
       if(hostId){
         channel = dcs[hostId];
@@ -758,6 +878,8 @@ function sendMessage(){
       console.log(dcs);
       console.log(dcs[userSelect.value]);
       textbox.style.backgroundColor = "#fdffa1ab"
+      textbox.innerText = "To " + userSelect.options[userSelect.selectedIndex].text + " : " + input.value;
+
       if(dcs[userSelect.value]){
         channel = dcs[userSelect.value];
         channel.send(input.value + "/" + USER_NAME + "/" + ISCREATOR + "/r");
@@ -772,7 +894,7 @@ function sendMessage(){
     }
 
     // textbox.innerText = USER_NAME + " : " + input.value;
-    textbox.innerText = "내 메시지 : " + input.value;
+    // textbox.innerText = "내 메시지 : " + input.value;
     textbox.style.wordBreak = "break-all";
     chatlog.append(textbox);
 
@@ -782,6 +904,11 @@ function sendMessage(){
 }
 
 function handleChat(){
+
+  new_message = 0;
+  messageCount.style.visibility = "hidden";
+  bubble.style.visibility = "hidden";
+
   if(host){
     if(chatting){
       ground.style.width = "100%";
@@ -841,3 +968,43 @@ function handleUserChange(){
 
   }
 }
+
+function saveText(message){
+  console.log(message);
+  const input = messageBox.querySelector("input");
+  input.value = message;
+  window.Android.setText(input.value);
+}
+
+// setTimeout(function(){
+//   fadeOut(bubble)
+// },2000);
+
+function fadeOut(target) {
+  outTimer = setInterval(function(){
+    level = fadeOutAction(target,level,outTimer);
+  },50);
+}
+
+function fadeOutAction(target,level,outTimer){
+  level = level - 0.05;
+  changeOpacity(target,level);
+  if(level < 0){
+    clearInterval(outTimer);
+  }
+  return level;
+}
+
+function changeOpacity(target, level){
+  let obj = target;
+  obj.style.opacity = level;
+  obj.style.MozOpacity = level;
+  obj.style.KhtmlOpacity = level;
+  obj.style.MsFilter = "'progid:DXImageTransform.Microsoft.Alpha(Opacity=" + (level*100) + ")'";
+  obj.style.filter = "alpha(opacity=" + (level*100) + ");";
+}
+
+// function loadText(){
+//   const input = messageBox.querySelector("input");
+//   window.Android.setText(input.value);
+// }
