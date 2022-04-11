@@ -426,10 +426,11 @@ async function firstini(){
         bubble.style.visibility = "visible";
         clearTimeout(timer);
         clearInterval(outTimer);
+        let get_message_short = get_message[0];
         if(get_message[0].length > 7){
-          get_message[0] = get_message[0].substr(0,7) + "...";
+          get_message_short = get_message[0].substr(0,7) + "...";
         }
-        bubble.innerHTML = get_message[1] + "<br/>" + get_message[0];
+        bubble.innerHTML = get_message[1] + "<br/>" + get_message_short;
         if(get_message.length > 3){
           bubble.style.background = "#989b48c0";
           bubble.innerHTML = "FROM " + get_message[1] + "<br/>" + get_message[0];
@@ -604,6 +605,7 @@ function connectToNewUser(peerId, stream, name) {
   myDataChannel = myPeer.connect(peerId, {
     label:"chat"
   });
+  console.log("데이터 채널 만듬 123123123123123");
   myDataChannel.label = "chat";
 
   // dcs[myPeerId +"/"+ peerId] = myDataChannel;
@@ -634,10 +636,11 @@ function connectToNewUser(peerId, stream, name) {
       bubble.style.visibility = "visible";
       clearTimeout(timer);
       clearInterval(outTimer);
+      let get_message_short = get_message[0];
       if(get_message[0].length > 7){
-        get_message[0] = get_message[0].substr(0,7) + "...";
+        get_message_short = get_message[0].substr(0,7) + "...";
       }
-      bubble.innerHTML = get_message[1] + "<br/>" + get_message[0];
+      bubble.innerHTML = get_message[1] + "<br/>" + get_message_short;
         if(get_message.length > 3){
           bubble.style.background = "#989b48c0";
           bubble.innerHTML = "FROM " + get_message[1] + "<br/>" + get_message[0];
@@ -1008,3 +1011,9 @@ function changeOpacity(target, level){
 //   const input = messageBox.querySelector("input");
 //   window.Android.setText(input.value);
 // }
+
+// myPeer.addEventListener('connectionstatechange', event =>{
+//   if(myPeerConnection.connectionState === 'connected'){
+//       console.log("peers connected");
+//   }
+// });
